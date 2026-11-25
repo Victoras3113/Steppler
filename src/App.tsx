@@ -30,11 +30,16 @@ export function App() {
   const loadMe = useCallback(async () => {
     const uid = session?.user.id;
     if (!uid) return setMe(null);
-    const [{ data: p }, { data: r }, { data: q }] = await Promise.all([
+    const [{ data: p, error: pe }, { data: r }, { data: q }] = await Promise.all([
       supabase.from("profiles").select("*").eq("id", uid).maybeSingle(),
       supabase.from("user_roles").select("role").eq("user_id", uid),
       supabase.from("admin_requests").select("user_id").eq("user_id", uid).maybeSingle(),
     ]);
+    // A login saved on this phone for an account that was deleted: sign out instead of loading forever.
+    if (!p && !pe) {
+      const { data: u, error: ue } = await supabase.auth.getUser();
+      if (ue || !u.user) { await supabase.auth.signOut({ scope: "local" }); return; }
+    }
     setMe(p);
     setIsAdmin(!!r?.some((x) => x.role === "admin"));
     setPending(!!q && !r?.length);
@@ -47,7 +52,13 @@ export function App() {
   if (recovering && session) return <ResetPassword onDone={() => setRecovering(false)} />;
   if (session === undefined) return <div className="min-h-dvh" />;
   if (!session) return <AuthScreen />;
-  if (!me) return <div className="flex min-h-dvh items-center justify-center text-muted-foreground">{t("loading")}</div>;
+  if (!me)
+    return (
+      <div className="flex min-h-dvh flex-col items-center justify-center gap-6 text-muted-foreground">
+        <p>{t("loading")}</p>
+        <button onClick={() => supabase.auth.signOut({ scope: "local" })} className="text-sm underline">{t("signOut")}</button>
+      </div>
+    );
   if (pending)
     return (
       <main className="flex min-h-dvh flex-col items-center justify-center gap-4 px-6 text-center">
