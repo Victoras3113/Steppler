@@ -14,6 +14,7 @@ The app runs without Lovable:
 4. **Fill in `.env.production`** with the Project URL and the Publishable key (Project Settings → API Keys). Both are public by design.
 5. **Add one GitHub secret:** go to Settings → Secrets and variables → Actions and add **`SUPABASE_ACCESS_TOKEN`**. You create the token at https://supabase.com/dashboard/account/tokens.
 6. **Turn on GitHub Pages:** go to Settings → Pages and set Source to **GitHub Actions**. Then on the Actions tab, run Deploy.
+6b. **Order photos:** run `supabase/photos.sql` in the SQL Editor. It creates private photo storage and requires 3 photos before an order can be finished.
 7. **Turn on the 30-minute alert:** put your project ref into `supabase/cron.sql`, then run it in the SQL Editor.
 8. **Optional translation** for EN/PL/RO drivers: get a free DeepL key at deepl.com/pro-api, then run
    `insert into public.app_secrets(name, value) values ('deepl_api_key', 'YOUR-KEY:fx');`

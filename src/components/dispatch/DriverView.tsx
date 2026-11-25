@@ -8,6 +8,7 @@ import { t, useLang } from "@/lib/i18n";
 import { subscribePush } from "@/lib/push-client";
 import { notifyAdmins } from "@/lib/push.functions";
 import { EditProfile } from "./EditProfile";
+import { OrderPhotoCapture, PHOTOS_REQUIRED } from "./OrderPhotos";
 import { ShiftPanel, useNow, dur, fmtDateTime } from "./ShiftPanel";
 import { Header, statusMeta, statusOrder, useOrders, type DriverStatus, type Order, type Profile } from "./shared";
 
@@ -15,6 +16,8 @@ export function DriverView({ me, onChange }: { me: Profile; onChange: () => void
   useLang();
   const now = useNow();
   const [incoming, setIncoming] = useState<Order | null>(null);
+  // Photos taken per accepted order; an order can only be finished with PHOTOS_REQUIRED photos.
+  const [photoCount, setPhotoCount] = useState<Record<string, number>>({});
   useEffect(() => {
     // Keep this phone's push subscription fresh if alerts were already allowed.
     void subscribePush(me.id).catch(() => {});
@@ -43,6 +46,7 @@ export function DriverView({ me, onChange }: { me: Profile; onChange: () => void
   };
 
   const complete = async (id: string) => {
+    if ((photoCount[id] ?? 0) < PHOTOS_REQUIRED) { toast.error(t("photosRequired", { n: PHOTOS_REQUIRED - (photoCount[id] ?? 0) })); return; }
     const { error } = await supabase.rpc("complete_order", { _order_id: id });
     if (error) { toast.error(error.message); return; }
     await supabase.from("profiles").update({ status: "available", updated_at: new Date().toISOString() }).eq("id", me.id);
@@ -108,7 +112,9 @@ export function DriverView({ me, onChange }: { me: Profile; onChange: () => void
               <p className="text-sm text-muted-foreground">{t("sentAt", { d: fmtDateTime(o.created_at) })}</p>
               {o.accepted_at && <p className="text-sm text-muted-foreground">{t("tookFor")}: {dur(new Date(o.accepted_at).getTime() - new Date(o.created_at).getTime())}</p>}
               <p className="mt-2 whitespace-pre-wrap"><Translated text={o.details} /></p>
-              <button onClick={() => complete(o.id)} className="mt-4 h-12 w-full rounded-xl bg-success font-semibold text-success-foreground">
+              <OrderPhotoCapture orderId={o.id} onCount={(n) => setPhotoCount((c) => (c[o.id] === n ? c : { ...c, [o.id]: n }))} />
+              <button onClick={() => complete(o.id)} disabled={(photoCount[o.id] ?? 0) < PHOTOS_REQUIRED}
+                className="mt-4 h-12 w-full rounded-xl bg-success font-semibold text-success-foreground disabled:opacity-40">
                 {t("markDone")}
               </button>
             </div>

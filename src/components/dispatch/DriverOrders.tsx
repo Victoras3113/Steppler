@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Translated } from "./Translated";
+import { OrderPhotoGallery } from "./OrderPhotos";
 import { supabase } from "@/integrations/supabase/client";
 import { t, useLang, getLang } from "@/lib/i18n";
 
@@ -10,6 +11,7 @@ export function DriverOrders({ driverId }: { driverId: string }) {
   useLang();
   const [orders, setOrders] = useState<O[]>([]);
   const [showHistory, setShowHistory] = useState(false);
+  const [photosOf, setPhotosOf] = useState<string | null>(null);
   useEffect(() => {
     void supabase.from("orders").select("id,details,accepted_at,status")
       .eq("accepted_by", driverId).order("accepted_at", { ascending: false }).limit(500)
@@ -35,6 +37,10 @@ export function DriverOrders({ driverId }: { driverId: string }) {
         <span>{o.status === "done" ? t("done") : t("inProgress")}</span>
       </div>
       <p className="mt-1 line-clamp-2"><Translated text={o.details} /></p>
+      <button type="button" onClick={() => setPhotosOf(photosOf === o.id ? null : o.id)} className="mt-1 text-xs font-semibold text-primary">
+        📷 {photosOf === o.id ? t("hide") : t("photos")}
+      </button>
+      {photosOf === o.id && <OrderPhotoGallery orderId={o.id} />}
     </li>
   );
 
