@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Translated } from "./Translated";
-import { OrderPhotoGallery } from "./OrderPhotos";
+import { OrderPhotoGallery, deleteOrderWithPhotos } from "./OrderPhotos";
+import { toast } from "sonner";
+import { Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { t, useLang, getLang } from "@/lib/i18n";
 
@@ -12,6 +14,20 @@ export function DriverOrders({ driverId }: { driverId: string }) {
   const [orders, setOrders] = useState<O[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [photosOf, setPhotosOf] = useState<string | null>(null);
+  const [confirmDel, setConfirmDel] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const removeOrder = async (id: string) => {
+    setDeleting(true);
+    try {
+      await deleteOrderWithPhotos(id);
+      setOrders((list) => list.filter((x) => x.id !== id));
+      toast.success(t("orderDeleted"));
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+    setDeleting(false);
+    setConfirmDel(null);
+  };
   useEffect(() => {
     void supabase.from("orders").select("id,details,accepted_at,status")
       .eq("accepted_by", driverId).order("accepted_at", { ascending: false }).limit(500)
@@ -37,10 +53,25 @@ export function DriverOrders({ driverId }: { driverId: string }) {
         <span>{o.status === "done" ? t("done") : t("inProgress")}</span>
       </div>
       <p className="mt-1 line-clamp-2"><Translated text={o.details} /></p>
-      <button type="button" onClick={() => setPhotosOf(photosOf === o.id ? null : o.id)} className="mt-1 text-xs font-semibold text-primary">
-        📷 {photosOf === o.id ? t("hide") : t("photos")}
-      </button>
-      {photosOf === o.id && <OrderPhotoGallery orderId={o.id} />}
+      <div className="mt-1 flex items-center justify-between">
+        <button type="button" onClick={() => setPhotosOf(photosOf === o.id ? null : o.id)} className="text-xs font-semibold text-primary">
+          📷 {photosOf === o.id ? t("hide") : t("photos")}
+        </button>
+        <button type="button" onClick={() => setConfirmDel(o.id)} className="flex items-center gap-1 text-xs font-semibold text-destructive">
+          <Trash2 className="size-3.5" /> {t("deleteOrder")}
+        </button>
+      </div>
+      {confirmDel === o.id && (
+        <div className="mt-2 rounded-lg border border-destructive/40 p-2">
+          <p className="text-xs">{t("confirmDeleteOrder")}</p>
+          <div className="mt-2 flex gap-2">
+            <button type="button" disabled={deleting} onClick={() => removeOrder(o.id)}
+              className="h-9 flex-1 rounded-lg bg-destructive text-xs font-semibold text-white disabled:opacity-50">{t("deleteOrder")}</button>
+            <button type="button" onClick={() => setConfirmDel(null)} className="h-9 flex-1 rounded-lg border text-xs font-semibold">{t("cancel")}</button>
+          </div>
+        </div>
+      )}
+      {photosOf === o.id && <OrderPhotoGallery orderId={o.id} label={(o.accepted_at ?? "").slice(0, 16).replace("T", "_").replace(":", "-")} />}
     </li>
   );
 

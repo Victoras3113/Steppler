@@ -35,3 +35,7 @@ begin
 end $$;
 revoke execute on function public.complete_order(uuid) from public, anon;
 grant execute on function public.complete_order(uuid) to authenticated;
+
+-- Admins may delete order photos (used when an order is deleted).
+create policy "admins delete order photos" on storage.objects for delete to authenticated
+  using (bucket_id = 'order-photos' and public.has_role(auth.uid(), 'admin'));

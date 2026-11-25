@@ -15,6 +15,7 @@ import { DriverOrders } from "./DriverOrders";
 import { CustomersCard, useCustomers } from "./Customers";
 import { DriverPassword } from "./DriverPassword";
 import { deleteUser } from "@/lib/drivers.functions";
+import { deleteOrderWithPhotos } from "./OrderPhotos";
 
 // Notifications to drivers are always German.
 const customerText = (name: string) =>
@@ -147,7 +148,7 @@ export function AdminView({ me }: { me: Profile }) {
   };
 
   const cancel = async (id: string) => {
-    await supabase.from("orders").delete().eq("id", id);
+    try { await deleteOrderWithPhotos(id); } catch (e) { toast.error((e as Error).message); }
     void reload();
   };
 
