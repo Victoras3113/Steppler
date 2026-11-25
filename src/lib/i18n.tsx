@@ -50,7 +50,7 @@ const en = {
   newOrderAlert: "New order — help needed!",
   justNow: "just now", minAgo: "{n} min ago", hAgo: "{n} h ago",
   newPassword: "New password", savePassword: "Save password", pwUpdated: "Password updated",
-  deleteAccount: "Delete account", confirmDelete: "Permanently delete the account of {name}? This cannot be undone.", accountDeleted: "Account deleted", mainAccount: "main account",
+  deleteAccount: "Delete account", confirmDelete: "Permanently delete the account of {name}? This cannot be undone.", accountDeleted: "Account deleted", cancel: "Cancel", mainAccount: "main account",
   username: "Username", emailOrUser: "Email or username", userRule: "Username: 3–30 letters, numbers, . _ -", userTaken: "Username already taken", setDriverPw: "Set new password", pwSet: "Password changed", forgotDriver: "Drivers: ask your administrator to reset your password.", editProfile: "Edit profile", saveProfile: "Save", profileSaved: "Profile saved", emailChange: "Check both inboxes to confirm the new email.", currentPassword: "Current password", pwRule: "At least 8 characters, 1 uppercase letter, 1 number and 1 special character.",
 };
 
@@ -102,7 +102,7 @@ const de: typeof en = {
   newOrderAlert: "Neuer Auftrag – Hilfe benötigt!",
   justNow: "gerade eben", minAgo: "vor {n} Min.", hAgo: "vor {n} Std.",
   newPassword: "Neues Passwort", savePassword: "Passwort speichern", pwUpdated: "Passwort aktualisiert",
-  deleteAccount: "Konto löschen", confirmDelete: "Konto von {name} endgültig löschen? Das kann nicht rückgängig gemacht werden.", accountDeleted: "Konto gelöscht", mainAccount: "Hauptkonto",
+  deleteAccount: "Konto löschen", confirmDelete: "Konto von {name} endgültig löschen? Das kann nicht rückgängig gemacht werden.", accountDeleted: "Konto gelöscht", cancel: "Abbrechen", mainAccount: "Hauptkonto",
   username: "Benutzername", emailOrUser: "E-Mail oder Benutzername", userRule: "Benutzername: 3–30 Buchstaben, Zahlen, . _ -", userTaken: "Benutzername bereits vergeben", setDriverPw: "Neues Passwort setzen", pwSet: "Passwort geändert", forgotDriver: "Fahrer: Bitte den Administrator bitten, das Passwort zurückzusetzen.", editProfile: "Profil bearbeiten", saveProfile: "Speichern", profileSaved: "Profil gespeichert", emailChange: "Bitte die neue E-Mail über den Link in Ihrem Postfach bestätigen.", currentPassword: "Aktuelles Passwort", pwRule: "Mindestens 8 Zeichen, 1 Großbuchstabe, 1 Zahl und 1 Sonderzeichen.",
 };
 
@@ -154,7 +154,7 @@ const pl: typeof en = {
   newOrderAlert: "Nowe zlecenie – potrzebna pomoc!",
   justNow: "przed chwilą", minAgo: "{n} min temu", hAgo: "{n} godz. temu",
   newPassword: "Nowe hasło", savePassword: "Zapisz hasło", pwUpdated: "Hasło zaktualizowane",
-  deleteAccount: "Usuń konto", confirmDelete: "Trwale usunąć konto {name}? Tej operacji nie można cofnąć.", accountDeleted: "Konto usunięte", mainAccount: "konto główne",
+  deleteAccount: "Usuń konto", confirmDelete: "Trwale usunąć konto {name}? Tej operacji nie można cofnąć.", accountDeleted: "Konto usunięte", cancel: "Anuluj", mainAccount: "konto główne",
   username: "Nazwa użytkownika", emailOrUser: "E-mail lub nazwa użytkownika", userRule: "Nazwa: 3–30 liter, cyfr, . _ -", userTaken: "Nazwa użytkownika zajęta", setDriverPw: "Ustaw nowe hasło", pwSet: "Hasło zmienione", forgotDriver: "Kierowcy: poproś administratora o reset hasła.", editProfile: "Edytuj profil", saveProfile: "Zapisz", profileSaved: "Profil zapisany", emailChange: "Potwierdź nowy e-mail linkiem ze skrzynki.", currentPassword: "Obecne hasło", pwRule: "Min. 8 znaków, 1 wielka litera, 1 cyfra i 1 znak specjalny.",
 };
 
@@ -205,7 +205,7 @@ const ro: typeof en = {
   newOrderAlert: "Comandă nouă – e nevoie de ajutor!",
   justNow: "chiar acum", minAgo: "acum {n} min", hAgo: "acum {n} ore",
   newPassword: "Parolă nouă", savePassword: "Salvează parola", pwUpdated: "Parolă actualizată",
-  deleteAccount: "Șterge contul", confirmDelete: "Ștergi definitiv contul lui {name}? Acțiunea nu poate fi anulată.", accountDeleted: "Cont șters", mainAccount: "cont principal",
+  deleteAccount: "Șterge contul", confirmDelete: "Ștergi definitiv contul lui {name}? Acțiunea nu poate fi anulată.", accountDeleted: "Cont șters", cancel: "Anulează", mainAccount: "cont principal",
   username: "Nume utilizator", emailOrUser: "E-mail sau nume utilizator", userRule: "Nume utilizator: 3–30 litere, cifre, . _ -", userTaken: "Nume utilizator deja folosit", setDriverPw: "Setează parolă nouă", pwSet: "Parolă schimbată", forgotDriver: "Șoferi: cereți administratorului resetarea parolei.", editProfile: "Editează profilul", saveProfile: "Salvează", profileSaved: "Profil salvat", emailChange: "Confirmă noul e-mail prin linkul din căsuța poștală.", currentPassword: "Parola actuală", pwRule: "Minim 8 caractere, 1 literă mare, 1 cifră și 1 caracter special.",
 };
 

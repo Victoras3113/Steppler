@@ -44,8 +44,9 @@ export function AdminView({ me }: { me: Profile }) {
     void supabase.from("app_owner").select("user_id").eq("user_id", me.id).maybeSingle().then(({ data }) => setIsOwner(!!data));
   }, [me.id]);
   const [deleting, setDeleting] = useState<string | null>(null);
-  const removeAccount = async (id: string, name: string) => {
-    if (!window.confirm(t("confirmDelete", { name }))) return;
+  const [confirmId, setConfirmId] = useState<string | null>(null);
+  const removeAccount = async (id: string) => {
+    setConfirmId(null);
     setDeleting(id);
     try {
       await deleteUser({ data: { userId: id } });
@@ -57,12 +58,27 @@ export function AdminView({ me }: { me: Profile }) {
     }
     setDeleting(null);
   };
-  const deleteButton = (id: string, name: string) => (
-    <button onClick={() => removeAccount(id, name)} disabled={deleting === id}
-      className="flex items-center gap-1.5 rounded-lg border border-destructive/40 px-2.5 py-1 text-xs font-semibold text-destructive disabled:opacity-50">
-      <Trash2 className="size-3.5" /> {t("deleteAccount")}
-    </button>
-  );
+  // In-page confirmation (pop-up dialogs are blocked in some browsers and home-screen apps).
+  const deleteButton = (id: string, name: string) =>
+    confirmId === id ? (
+      <div className="w-full rounded-xl border border-destructive/40 bg-background p-3 text-left">
+        <p className="text-sm">{t("confirmDelete", { name })}</p>
+        <div className="mt-3 flex gap-2">
+          <button type="button" onClick={() => removeAccount(id)} disabled={deleting === id}
+            className="h-10 flex-1 rounded-xl bg-destructive text-sm font-semibold text-white disabled:opacity-50">
+            {t("deleteAccount")}
+          </button>
+          <button type="button" onClick={() => setConfirmId(null)} className="h-10 flex-1 rounded-xl border text-sm font-semibold">
+            {t("cancel")}
+          </button>
+        </div>
+      </div>
+    ) : (
+      <button type="button" onClick={() => setConfirmId(id)} disabled={deleting === id}
+        className="flex shrink-0 items-center gap-1.5 rounded-lg border border-destructive/40 px-2.5 py-1 text-xs font-semibold text-destructive disabled:opacity-50">
+        <Trash2 className="size-3.5" /> {t("deleteAccount")}
+      </button>
+    );
 
   // Alert admin when a driver starts or finishes an order.
   const prev = useRef<Map<string, string> | null>(null);
@@ -210,7 +226,7 @@ export function AdminView({ me }: { me: Profile }) {
         <h2 className="mb-3 text-2xl font-bold uppercase">{t("adminAccounts")}</h2>
         <ul className="divide-y divide-border overflow-hidden rounded-2xl bg-card">
           {admins.map((a) => (
-            <li key={a.id} className="flex items-center justify-between gap-2 px-4 py-3.5 font-medium">
+            <li key={a.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3.5 font-medium">
               <span>{a.display_name}{a.id === me.id ? (isOwner ? ` ✓ (${t("mainAccount")})` : " ✓") : ""}</span>
               {isOwner && a.id !== me.id && deleteButton(a.id, a.display_name)}
             </li>
