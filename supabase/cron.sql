@@ -1,5 +1,5 @@
--- "Order open for 30 minutes" alert for admins. Run AFTER the Edge Functions are deployed.
--- Replace YOUR-PROJECT-REF and YOUR-CRON-SECRET (same value as the CRON_SECRET GitHub secret), then run in the SQL Editor.
+-- "Order open for 30 minutes" alert for admins. Run AFTER schema.sql and after the first successful deploy.
+-- Replace YOUR-PROJECT-REF with your project ref, then run in the SQL Editor.
 create extension if not exists pg_cron;
 create extension if not exists pg_net;
 
@@ -9,7 +9,10 @@ select cron.schedule(
   $$
   select net.http_post(
     url := 'https://YOUR-PROJECT-REF.supabase.co/functions/v1/overdue-orders',
-    headers := '{"Content-Type": "application/json", "x-cron-secret": "YOUR-CRON-SECRET"}'::jsonb,
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'x-cron-secret', (select value from public.app_secrets where name = 'cron_secret')
+    ),
     body := '{}'::jsonb
   );
   $$

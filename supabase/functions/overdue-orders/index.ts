@@ -1,9 +1,9 @@
 // Called every minute by pg_cron (see supabase/schema.sql): alerts all admins once per order left open 30+ minutes.
-// Protected by the CRON_SECRET secret. Each order is marked before sending, so it never alerts twice.
-import { admin, adminIds, json, pushTo } from "../_shared/util.ts";
+// Protected by the cron_secret value in app_secrets. Each order is marked before sending, so it never alerts twice.
+import { admin, adminIds, appSecret, json, pushTo } from "../_shared/util.ts";
 
 Deno.serve(async (req) => {
-  const secret = Deno.env.get("CRON_SECRET");
+  const secret = await appSecret("cron_secret");
   if (!secret || req.headers.get("x-cron-secret") !== secret) return json({ error: "Unauthorized" }, 401);
 
   const cutoff = new Date(Date.now() - 30 * 60 * 1000).toISOString();

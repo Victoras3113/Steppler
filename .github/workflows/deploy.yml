@@ -1,7 +1,6 @@
 # On every push to main: deploys the Supabase Edge Functions, then builds the app and publishes it to GitHub Pages.
-# Needs these repository secrets (Settings → Secrets and variables → Actions) — see SETUP.md:
-#   SUPABASE_ACCESS_TOKEN, SUPABASE_PROJECT_REF, VITE_SUPABASE_URL, VITE_SUPABASE_PUBLISHABLE_KEY,
-#   VAPID_SEED, CRON_SECRET, and optionally DEEPL_API_KEY.
+# The Supabase project address and publishable key are in .env.production (they are public by design).
+# Only one repository secret is needed: SUPABASE_ACCESS_TOKEN (Settings → Secrets and variables → Actions).
 name: Deploy
 
 on:
@@ -23,40 +22,23 @@ jobs:
     runs-on: ubuntu-latest
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-      PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
     steps:
-      - name: Check secrets (see SETUP.md step 2)
-        env:
-          S1: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          S2: ${{ secrets.SUPABASE_PROJECT_REF }}
-          S3: ${{ secrets.VITE_SUPABASE_URL }}
-          S4: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
-          S5: ${{ secrets.VAPID_SEED }}
-          S6: ${{ secrets.CRON_SECRET }}
+      - uses: actions/checkout@v4
+      - name: Check setup (see SETUP.md)
         run: |
-          missing=""
-          [ -z "$S1" ] && missing="$missing SUPABASE_ACCESS_TOKEN"
-          [ -z "$S2" ] && missing="$missing SUPABASE_PROJECT_REF"
-          [ -z "$S3" ] && missing="$missing VITE_SUPABASE_URL"
-          [ -z "$S4" ] && missing="$missing VITE_SUPABASE_PUBLISHABLE_KEY"
-          [ -z "$S5" ] && missing="$missing VAPID_SEED"
-          [ -z "$S6" ] && missing="$missing CRON_SECRET"
-          if [ -n "$missing" ]; then
-            echo "::error::Missing repository secrets:$missing — add them under Settings → Secrets and variables → Actions (see SETUP.md)."
+          if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then
+            echo "::error::Missing repository secret SUPABASE_ACCESS_TOKEN (Settings → Secrets and variables → Actions)."
             exit 1
           fi
-      - uses: actions/checkout@v4
+          ref=$(grep '^VITE_SUPABASE_URL=' .env.production | sed -E 's#.*https://([a-z0-9]+)\.supabase\.co.*#\1#')
+          if [ -z "$ref" ] || grep -q YOUR-PROJECT-REF .env.production; then
+            echo "::error::Fill in .env.production with your Supabase project URL and publishable key."
+            exit 1
+          fi
+          echo "PROJECT_REF=$ref" >> "$GITHUB_ENV"
       - uses: supabase/setup-cli@v1
         with:
           version: latest
-      - name: Set function secrets
-        run: |
-          supabase secrets set --project-ref "$PROJECT_REF" \
-            VAPID_SEED="${{ secrets.VAPID_SEED }}" \
-            CRON_SECRET="${{ secrets.CRON_SECRET }}"
-          if [ -n "${{ secrets.DEEPL_API_KEY }}" ]; then
-            supabase secrets set --project-ref "$PROJECT_REF" DEEPL_API_KEY="${{ secrets.DEEPL_API_KEY }}"
-          fi
       - name: Deploy functions
         run: supabase functions deploy --project-ref "$PROJECT_REF" --use-api
 
@@ -75,8 +57,6 @@ jobs:
       - run: npm run build
         env:
           BASE_PATH: /${{ github.event.repository.name }}/
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

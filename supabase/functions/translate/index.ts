@@ -1,6 +1,6 @@
 // Translates order details for drivers who use EN / PL / RO.
-// Uses DeepL's free API (500,000 characters/month) when DEEPL_API_KEY is set; otherwise returns the original text.
-import { cors, json, userIdFrom } from "../_shared/util.ts";
+// Uses DeepL's free API (500,000 characters/month) when a deepl_api_key row exists in app_secrets; otherwise returns the original text.
+import { appSecret, cors, json, userIdFrom } from "../_shared/util.ts";
 
 const target = { de: "DE", en: "EN-GB", pl: "PL", ro: "RO" } as const;
 
@@ -10,7 +10,7 @@ Deno.serve(async (req) => {
   if (typeof text !== "string" || !text.trim() || text.length > 5000 || !(lang in target)) return json({ error: "bad input" }, 400);
   if (!(await userIdFrom(req))) return json({ error: "not signed in" }, 401);
 
-  const key = Deno.env.get("DEEPL_API_KEY");
+  const key = await appSecret("deepl_api_key");
   if (!key || lang === "de") return json({ text });
   const host = key.endsWith(":fx") ? "api-free.deepl.com" : "api.deepl.com";
   try {

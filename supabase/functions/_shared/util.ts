@@ -35,10 +35,20 @@ export const pwOk = (p: string) => p.length >= 8 && /[A-Z]/.test(p) && /\d/.test
 const b64url = (b: Uint8Array) =>
   btoa(String.fromCharCode(...b)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 
-// VAPID keys derived from the VAPID_SEED secret — no third-party push account needed.
+// Server-only settings live in the app_secrets table (created with random values by schema.sql).
+const cache = new Map<string, string | null>();
+export async function appSecret(name: string): Promise<string | null> {
+  if (cache.has(name)) return cache.get(name)!;
+  const { data } = await admin.from("app_secrets").select("value").eq("name", name).maybeSingle();
+  const v = (data?.value as string | undefined) || Deno.env.get(name.toUpperCase()) || null;
+  cache.set(name, v);
+  return v;
+}
+
+// VAPID keys derived from the vapid_seed secret — no third-party push account needed.
 export async function vapidKeys() {
-  const seed = Deno.env.get("VAPID_SEED");
-  if (!seed) throw new Error("VAPID_SEED missing");
+  const seed = await appSecret("vapid_seed");
+  if (!seed) throw new Error("vapid_seed missing");
   const d = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(seed)));
   const pub = p256.getPublicKey(d, false);
   return { subject: "mailto:dispatch@seppeler.de", publicKey: b64url(pub), privateKey: b64url(d) };

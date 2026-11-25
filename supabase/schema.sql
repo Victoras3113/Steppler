@@ -198,6 +198,17 @@ end $$;
 create trigger profiles_status_log after insert or update of status on public.profiles
   for each row execute function public.log_status_change();
 
+-- Server-only settings (read by the Edge Functions with the service role; invisible to the app) ---------------
+create table public.app_secrets (name text primary key, value text not null);
+revoke all on public.app_secrets from anon, authenticated;
+grant all on public.app_secrets to service_role;
+alter table public.app_secrets enable row level security;
+insert into public.app_secrets(name, value) values
+  ('vapid_seed', replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', '')),
+  ('cron_secret', replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', ''));
+-- Optional translation for EN/PL/RO drivers (free key from deepl.com/pro-api):
+-- insert into public.app_secrets(name, value) values ('deepl_api_key', 'YOUR-KEY:fx');
+
 -- Live updates ------------------------------------------------------------------
 alter publication supabase_realtime add table public.orders;
 alter publication supabase_realtime add table public.profiles;
