@@ -99,10 +99,10 @@ create table public.admin_requests (
 grant select on public.admin_requests to authenticated;
 grant all on public.admin_requests to service_role;
 alter table public.admin_requests enable row level security;
-create policy "own or admin reads" on public.admin_requests for select to authenticated
-  using (user_id = auth.uid() or public.has_role(auth.uid(), 'admin'));
+create policy "own or owner reads" on public.admin_requests for select to authenticated
+  using (user_id = auth.uid() or exists (select 1 from public.app_owner o where o.user_id = auth.uid()));
 
--- The very first account becomes the owner/admin. Later admin sign-ups need approval; everyone else is a driver.
+-- The very first account becomes the owner/admin. Later admin sign-ups need the owner's approval; everyone else is a driver.
 create or replace function public.handle_new_user()
 returns trigger language plpgsql security definer set search_path = public
 as $$
@@ -126,8 +126,8 @@ create or replace function public.decide_admin_request(_user_id uuid, _approve b
 returns boolean language plpgsql security definer set search_path = public
 as $$
 begin
-  if not public.has_role(auth.uid(), 'admin') then
-    raise exception 'Only administrators can approve administrators';
+  if not exists (select 1 from public.app_owner where user_id = auth.uid()) then
+    raise exception 'Only the main account can approve administrators';
   end if;
   delete from public.admin_requests where user_id = _user_id;
   if not found then return false; end if;

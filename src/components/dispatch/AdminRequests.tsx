@@ -11,8 +11,10 @@ export function AdminRequests({ meId }: { meId: string }) {
   const [reqs, setReqs] = useState<Req[]>([]);
 
   const load = useCallback(async () => {
-    // Any administrator can review admin requests (this card only renders on the admin screen).
-    setIsOwner(true);
+    // Only the main (owner) account — the first account ever created — can approve new administrators.
+    const { data: own } = await supabase.from("app_owner").select("user_id").eq("user_id", meId).maybeSingle();
+    setIsOwner(!!own);
+    if (!own) return;
     const { data } = await supabase.from("admin_requests").select("user_id,display_name,email").neq("user_id", meId).order("created_at");
     setReqs(data ?? []);
   }, [meId]);

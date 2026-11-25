@@ -20,7 +20,7 @@ The app runs without Lovable:
 
 ## First login
 
-The **first account created becomes the owner/admin**, so sign up in **Admin** mode first. Drivers register with **Fahrer** (a username and password, no e-mail).
+The **first account created becomes the owner/admin**, so sign up in **Admin** mode first. Only this main account can approve or decline later admin sign-ups. Drivers register with **Fahrer** (a username and password, no e-mail).
 
 Old data from Lovable does not carry over.
 
