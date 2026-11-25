@@ -12,3 +12,7 @@ export const signupDriver = ({ data }: { data: { username: string; password: str
 // Admin only: set a new password for a driver. Runs in supabase/functions/set-driver-password.
 export const setDriverPassword = ({ data }: { data: { userId: string; password: string } }) =>
   callFn<{ ok: boolean }>("set-driver-password", data);
+
+// Main (owner) account only: permanently delete another admin or driver account. Runs in supabase/functions/delete-user.
+export const deleteUser = ({ data }: { data: { userId: string } }) =>
+  callFn<{ ok: boolean }>("delete-user", data);

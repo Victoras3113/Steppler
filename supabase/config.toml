@@ -11,3 +11,5 @@ verify_jwt = false
 verify_jwt = false
 [functions.overdue-orders]
 verify_jwt = false
+[functions.delete-user]
+verify_jwt = false

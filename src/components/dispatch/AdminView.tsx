@@ -3,7 +3,7 @@ import { playRing, requestNotifyPermission, systemNotify, unlockAudio } from "@/
 import { subscribePush } from "@/lib/push-client";
 import { Translated } from "./Translated";
 import { toast } from "sonner";
-import { BellRing, Megaphone } from "lucide-react";
+import { BellRing, Megaphone, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { notifyDrivers } from "@/lib/push.functions";
 import { t, useLang } from "@/lib/i18n";
@@ -14,6 +14,7 @@ import { ShiftPanel } from "./ShiftPanel";
 import { DriverOrders } from "./DriverOrders";
 import { CustomersCard, useCustomers } from "./Customers";
 import { DriverPassword } from "./DriverPassword";
+import { deleteUser } from "@/lib/drivers.functions";
 
 // Notifications to drivers are always German.
 const customerText = (name: string) =>
@@ -36,6 +37,32 @@ export function AdminView({ me }: { me: Profile }) {
   const admins = profiles.filter((p) => adminIds?.includes(p.id));
   const available = drivers.filter((d) => d.status === "available").length;
   const nameOf = (id: string | null) => profiles.find((p) => p.id === id)?.display_name ?? "—";
+
+  // Only the main (owner) account — the first account ever created — may delete admin or driver accounts.
+  const [isOwner, setIsOwner] = useState(false);
+  useEffect(() => {
+    void supabase.from("app_owner").select("user_id").eq("user_id", me.id).maybeSingle().then(({ data }) => setIsOwner(!!data));
+  }, [me.id]);
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const removeAccount = async (id: string, name: string) => {
+    if (!window.confirm(t("confirmDelete", { name }))) return;
+    setDeleting(id);
+    try {
+      await deleteUser({ data: { userId: id } });
+      toast.success(t("accountDeleted"));
+      if (openDriver === id) setOpenDriver(null);
+      setAdminIds((ids) => ids?.filter((x) => x !== id) ?? ids);
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+    setDeleting(null);
+  };
+  const deleteButton = (id: string, name: string) => (
+    <button onClick={() => removeAccount(id, name)} disabled={deleting === id}
+      className="flex items-center gap-1.5 rounded-lg border border-destructive/40 px-2.5 py-1 text-xs font-semibold text-destructive disabled:opacity-50">
+      <Trash2 className="size-3.5" /> {t("deleteAccount")}
+    </button>
+  );
 
   // Alert admin when a driver starts or finishes an order.
   const prev = useRef<Map<string, string> | null>(null);
@@ -172,7 +199,7 @@ export function AdminView({ me }: { me: Profile }) {
                     </button>
                   </div>
                 </div>
-                {openDriver === d.id && <div className="mt-3"><ShiftPanel userId={d.id} status={d.status} /><DriverOrders driverId={d.id} /><DriverPassword userId={d.id} /></div>}
+                {openDriver === d.id && <div className="mt-3"><ShiftPanel userId={d.id} status={d.status} /><DriverOrders driverId={d.id} /><DriverPassword userId={d.id} />{isOwner && <div className="mt-3 flex justify-end">{deleteButton(d.id, d.display_name)}</div>}</div>}
               </li>
             );
           })}
@@ -183,7 +210,10 @@ export function AdminView({ me }: { me: Profile }) {
         <h2 className="mb-3 text-2xl font-bold uppercase">{t("adminAccounts")}</h2>
         <ul className="divide-y divide-border overflow-hidden rounded-2xl bg-card">
           {admins.map((a) => (
-            <li key={a.id} className="px-4 py-3.5 font-medium">{a.display_name}{a.id === me.id ? " ✓" : ""}</li>
+            <li key={a.id} className="flex items-center justify-between gap-2 px-4 py-3.5 font-medium">
+              <span>{a.display_name}{a.id === me.id ? (isOwner ? ` ✓ (${t("mainAccount")})` : " ✓") : ""}</span>
+              {isOwner && a.id !== me.id && deleteButton(a.id, a.display_name)}
+            </li>
           ))}
         </ul>
       </section>
