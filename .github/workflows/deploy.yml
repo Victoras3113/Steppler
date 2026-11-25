@@ -38,7 +38,7 @@ jobs:
           echo "PROJECT_REF=$ref" >> "$GITHUB_ENV"
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 3.4.0
       - name: Deploy functions
         run: supabase functions deploy --project-ref "$PROJECT_REF" --use-api --yes
 
