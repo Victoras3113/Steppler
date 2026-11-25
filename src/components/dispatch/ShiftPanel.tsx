@@ -70,11 +70,11 @@ export function ShiftPanel({ userId, status }: { userId: string; status: DriverS
       <div className="mt-3 flex items-end justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{online ? t("onDutyFor") : t("offDutyFor")}</p>
-          <p className={`font-display text-5xl font-bold tabular-nums ${online ? "text-success" : "text-muted-foreground"}`}>{dur(now - streakStart)}</p>
+          <p className={`font-display text-5xl font-bold tabular-nums ${statusMeta[status].text}`}>{dur(now - streakStart)}</p>
         </div>
         <div className="text-right text-sm">
           <p className="text-muted-foreground">{t("inStatus", { s: t(statusMeta[status].label) })}</p>
-          <p className="font-semibold tabular-nums">{dur(now - curStart)}</p>
+          <p className={`font-semibold tabular-nums ${statusMeta[status].text}`}>{dur(now - curStart)}</p>
         </div>
       </div>
       {prevStretch !== null && (
