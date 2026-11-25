@@ -122,7 +122,18 @@ export async function deleteOrderWithPhotos(orderId: string) {
   if (error) throw error;
 }
 
-const fileBase = (label: string) => `Auftrag_${label.replace(/[^0-9A-Za-z_-]+/g, "-")}`;
+// Safe file name: keeps letters (incl. ä, ș, ł …) and numbers, drops characters that phones/Windows don't allow.
+const clean = (s: string, max = 60) =>
+  s.replace(/[\\/:*?"<>|\r\n\t]+/g, " ").replace(/\s+/g, " ").trim().slice(0, max).trim().replace(/ /g, "_");
+const stamp = (iso: string | null) => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}_${p(d.getHours())}-${p(d.getMinutes())}`;
+};
+// e.g. "Palette_zu_Halle_3_Gabriel_2026-11-25_14-30"
+export const photoFileBase = (orderDetails: string, driverName: string, processedAt: string | null) =>
+  [clean(orderDetails), clean(driverName, 40), stamp(processedAt)].filter(Boolean).join("_") || "Auftrag";
 
 function saveBlob(blob: Blob, name: string) {
   const a = document.createElement("a");
@@ -135,11 +146,11 @@ function saveBlob(blob: Blob, name: string) {
 }
 
 // Admin: view an order's photos (tap to open full size) and download them.
-export function OrderPhotoGallery({ orderId, label }: { orderId: string; label: string }) {
+export function OrderPhotoGallery({ orderId, fileName }: { orderId: string; fileName: string }) {
   useLang();
   const { photos, loaded } = useOrderPhotos(orderId);
   const [busy, setBusy] = useState(false);
-  const base = fileBase(label);
+  const base = fileName;
 
   const downloadOne = async (url: string, i: number) => {
     try { saveBlob(await (await fetch(url)).blob(), `${base}_${i + 1}.jpg`); }

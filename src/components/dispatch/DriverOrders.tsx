@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Translated } from "./Translated";
-import { OrderPhotoGallery, deleteOrderWithPhotos } from "./OrderPhotos";
+import { OrderPhotoGallery, deleteOrderWithPhotos, photoFileBase } from "./OrderPhotos";
 import { toast } from "sonner";
 import { Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,7 +9,7 @@ import { t, useLang, getLang } from "@/lib/i18n";
 type O = { id: string; details: string; accepted_at: string | null; status: string };
 
 // Admin-only: orders a driver processed today, plus a day-by-day history.
-export function DriverOrders({ driverId }: { driverId: string }) {
+export function DriverOrders({ driverId, driverName }: { driverId: string; driverName: string }) {
   useLang();
   const [orders, setOrders] = useState<O[]>([]);
   const [showHistory, setShowHistory] = useState(false);
@@ -71,7 +71,7 @@ export function DriverOrders({ driverId }: { driverId: string }) {
           </div>
         </div>
       )}
-      {photosOf === o.id && <OrderPhotoGallery orderId={o.id} label={(o.accepted_at ?? "").slice(0, 16).replace("T", "_").replace(":", "-")} />}
+      {photosOf === o.id && <OrderPhotoGallery orderId={o.id} fileName={photoFileBase(o.details, driverName, o.accepted_at)} />}
     </li>
   );
 

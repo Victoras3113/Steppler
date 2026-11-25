@@ -216,7 +216,7 @@ export function AdminView({ me }: { me: Profile }) {
                     </button>
                   </div>
                 </div>
-                {openDriver === d.id && <div className="mt-3"><ShiftPanel userId={d.id} status={d.status} /><DriverOrders driverId={d.id} /><DriverPassword userId={d.id} />{isOwner && <div className="mt-3 flex justify-end">{deleteButton(d.id, d.display_name)}</div>}</div>}
+                {openDriver === d.id && <div className="mt-3"><ShiftPanel userId={d.id} status={d.status} /><DriverOrders driverId={d.id} driverName={d.display_name} /><DriverPassword userId={d.id} />{isOwner && <div className="mt-3 flex justify-end">{deleteButton(d.id, d.display_name)}</div>}</div>}
               </li>
             );
           })}
