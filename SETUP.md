@@ -2,7 +2,7 @@
 
 The app runs without Lovable:
 
-- **The app itself** is hosted free on **GitHub Pages**, at `https://victoras3113.github.io/Steppler/`.
+- **The app itself** is hosted free on **GitHub Pages**, at `https://app.staplerdisponent.com/`.
 - **The database, logins and alerts** run on a free **Supabase** project.
 - Every push to `main` redeploys both automatically (`.github/workflows/deploy.yml`).
 
@@ -10,7 +10,7 @@ The app runs without Lovable:
 
 1. **Create the Supabase project** (free) at supabase.com. Pick region Central EU (Frankfurt).
 2. **Set up the database:** open the SQL Editor, paste all of `supabase/schema.sql`, and click Run. This also creates random server secrets (push keys, cron password) in the private `app_secrets` table, so you don't have to make any.
-3. **Set the address:** go to Authentication → URL Configuration and set the Site URL and a Redirect URL to `https://victoras3113.github.io/Steppler/`.
+3. **Set the address:** go to Authentication → URL Configuration and set the Site URL and a Redirect URL to `https://app.staplerdisponent.com/`.
 4. **Fill in `.env.production`** with the Project URL and the Publishable key (Project Settings → API Keys). Both are public by design.
 5. **Add one GitHub secret:** go to Settings → Secrets and variables → Actions and add **`SUPABASE_ACCESS_TOKEN`**. You create the token at https://supabase.com/dashboard/account/tokens.
 6. **Turn on GitHub Pages:** go to Settings → Pages and set Source to **GitHub Actions**. Then on the Actions tab, run Deploy.
