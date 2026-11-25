@@ -1,0 +1,13 @@
+project_id = "seppeler"
+
+# The functions check the signed-in user themselves (works with the new sb_publishable keys).
+[functions.signup-driver]
+verify_jwt = false
+[functions.set-driver-password]
+verify_jwt = false
+[functions.push]
+verify_jwt = false
+[functions.translate]
+verify_jwt = false
+[functions.overdue-orders]
+verify_jwt = false

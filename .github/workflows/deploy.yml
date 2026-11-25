@@ -1,0 +1,65 @@
+# On every push to main: deploys the Supabase Edge Functions, then builds the app and publishes it to GitHub Pages.
+# Needs these repository secrets (Settings → Secrets and variables → Actions) — see SETUP.md:
+#   SUPABASE_ACCESS_TOKEN, SUPABASE_PROJECT_REF, VITE_SUPABASE_URL, VITE_SUPABASE_PUBLISHABLE_KEY,
+#   VAPID_SEED, CRON_SECRET, and optionally DEEPL_API_KEY.
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: deploy
+  cancel-in-progress: true
+
+jobs:
+  functions:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Set function secrets
+        run: |
+          supabase secrets set --project-ref "$PROJECT_REF" \
+            VAPID_SEED="${{ secrets.VAPID_SEED }}" \
+            CRON_SECRET="${{ secrets.CRON_SECRET }}"
+          if [ -n "${{ secrets.DEEPL_API_KEY }}" ]; then
+            supabase secrets set --project-ref "$PROJECT_REF" DEEPL_API_KEY="${{ secrets.DEEPL_API_KEY }}"
+          fi
+      - name: Deploy functions
+        run: supabase functions deploy --project-ref "$PROJECT_REF" --use-api
+
+  site:
+    runs-on: ubuntu-latest
+    needs: functions
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run build
+        env:
+          BASE_PATH: /${{ github.event.repository.name }}/
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+      - id: deployment
+        uses: actions/deploy-pages@v4
