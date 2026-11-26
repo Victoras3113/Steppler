@@ -41,6 +41,19 @@ jobs:
           version: 3.4.0
       - name: Deploy functions
         run: supabase functions deploy --project-ref "$PROJECT_REF" --use-api --yes
+      # Apply database migrations (supabase/functions/_shared/migrations.ts) through the temporary db-migrate
+      # function, then remove that function again so it isn't left online.
+      - name: Apply database migrations
+        run: |
+          for i in 1 2 3; do
+            out=$(curl -sS -X POST "https://$PROJECT_REF.supabase.co/functions/v1/db-migrate" -H "Content-Type: application/json" -d '{}') && echo "$out"
+            echo "$out" | grep -q '"ok":true' && exit 0
+            sleep 10
+          done
+          echo "::error::Database migration failed: $out"; exit 1
+      - name: Remove migration function
+        if: always()
+        run: supabase functions delete db-migrate --project-ref "$PROJECT_REF" || true
 
   site:
     runs-on: ubuntu-latest

@@ -34,6 +34,7 @@ export function AuthScreen() {
         else {
           const { error } = await supabase.auth.signInWithPassword({ email: driverEmail(email), password });
           if (error) toast.error(error.message);
+          else toast.info(t("driverApprovalInfo"));
         }
       } catch (err) { toast.error((err as Error).message); }
     } else {

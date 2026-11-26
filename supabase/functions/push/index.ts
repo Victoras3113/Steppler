@@ -34,8 +34,13 @@ Deno.serve(async (req) => {
 
     if (d.action === "admins") {
       if (d.event !== "accepted" && d.event !== "done") return json({ error: "bad event" }, 400);
-      const { data: order } = await admin.from("orders").select("id, details, accepted_by").eq("id", d.orderId).single();
-      if (!order || order.accepted_by !== me) return json({ error: "Not allowed" }, 403);
+      // Send each event only once per order, and only if the order really is in that state.
+      const col = d.event === "accepted" ? "notified_accepted_at" : "notified_done_at";
+      const { data: order } = await admin.from("orders")
+        .update({ [col]: new Date().toISOString() })
+        .eq("id", d.orderId).eq("accepted_by", me).eq("status", d.event).is(col, null)
+        .select("id, details").maybeSingle();
+      if (!order) return json({ sent: 0 });
       const { data: p } = await admin.from("profiles").select("display_name").eq("id", me).single();
       const name = p?.display_name || "Fahrer";
       const sent = await pushTo(await adminIds(), {

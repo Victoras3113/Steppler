@@ -13,3 +13,5 @@ verify_jwt = false
 verify_jwt = false
 [functions.delete-user]
 verify_jwt = false
+[functions.db-migrate]
+verify_jwt = false

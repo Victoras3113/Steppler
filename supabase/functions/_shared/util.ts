@@ -3,8 +3,11 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { buildPushPayload } from "npm:@block65/webcrypto-web-push@2";
 import { p256 } from "npm:@noble/curves@2/nist.js";
 
+// Browsers may only call these functions from the app itself.
+export const APP_ORIGIN = Deno.env.get("APP_ORIGIN") ?? "https://app.staplerdisponent.com";
 export const cors = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": APP_ORIGIN,
+  "Vary": "Origin",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
@@ -83,3 +86,7 @@ export async function adminIds() {
   const { data } = await admin.from("user_roles").select("user_id").eq("role", "admin");
   return (data ?? []).map((a) => a.user_id as string);
 }
+
+// Best-effort client IP (Supabase Edge sits behind a proxy).
+export const clientIp = (req: Request) =>
+  (req.headers.get("cf-connecting-ip") ?? req.headers.get("x-forwarded-for")?.split(",")[0] ?? "unknown").trim();

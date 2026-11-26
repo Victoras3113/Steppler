@@ -1,5 +1,7 @@
-// Public: creates a confirmed driver account (no e-mail needed). Role is always driver.
-import { admin, cors, json, pwOk } from "../_shared/util.ts";
+// Public: creates a confirmed driver account (no e-mail needed). The account then waits for an admin's approval
+// before it can see or accept orders (see handle_new_user / decide_admin_request in the database).
+// Rate limited: max 5 sign-ups per IP per hour and 30 in total per hour.
+import { admin, clientIp, cors, json, pwOk } from "../_shared/util.ts";
 
 const DRIVER_DOMAIN = "drivers.seppeler.app";
 
@@ -13,6 +15,16 @@ Deno.serve(async (req) => {
     if (!/^[a-z0-9._-]{3,30}$/.test(username)) return json({ error: "bad_username" }, 400);
     if (!pwOk(password)) return json({ error: "bad_password" }, 400);
     if (!name) return json({ error: "bad_name" }, 400);
+
+    const ip = clientIp(req);
+    const hourAgo = new Date(Date.now() - 3600_000).toISOString();
+    const [{ count: mine }, { count: all }] = await Promise.all([
+      admin.from("signup_attempts").select("*", { count: "exact", head: true }).eq("ip", ip).gt("at", hourAgo),
+      admin.from("signup_attempts").select("*", { count: "exact", head: true }).gt("at", hourAgo),
+    ]);
+    if ((mine ?? 0) >= 5 || (all ?? 0) >= 30) return json({ error: "Too many sign-ups, please try again later." }, 429);
+    await admin.from("signup_attempts").insert({ ip });
+    await admin.from("signup_attempts").delete().lt("at", new Date(Date.now() - 7 * 86400_000).toISOString());
 
     const { error } = await admin.auth.admin.createUser({
       email: `${username}@${DRIVER_DOMAIN}`,
