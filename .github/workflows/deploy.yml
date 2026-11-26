@@ -53,7 +53,7 @@ jobs:
           echo "::error::Database migration failed: $out"; exit 1
       - name: Remove migration function
         if: always()
-        run: supabase functions delete db-migrate --project-ref "$PROJECT_REF" || true
+        run: supabase functions delete db-migrate --project-ref "$PROJECT_REF" --yes || true
 
   site:
     runs-on: ubuntu-latest
