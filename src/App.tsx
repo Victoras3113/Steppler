@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -27,6 +27,8 @@ export function App() {
     return () => data.subscription.unsubscribe();
   }, []);
 
+  const retryRef = useRef<() => void>(() => {});
+  const retrySoon = () => { setTimeout(() => retryRef.current(), 4000); };
   const loadMe = useCallback(async () => {
     const uid = session?.user.id;
     if (!uid) return setMe(null);
@@ -36,16 +38,25 @@ export function App() {
       supabase.from("admin_requests").select("user_id").eq("user_id", uid).maybeSingle(),
     ]);
     // A login saved on this phone for an account that was deleted: sign out instead of loading forever.
+    // Only when the server clearly says the user/session no longer exists — never on network hiccups
+    // (e.g. right after using the camera or uploading photos), and keep the current screen otherwise.
     if (!p && !pe) {
       const { data: u, error: ue } = await supabase.auth.getUser();
-      if (ue || !u.user) { await supabase.auth.signOut({ scope: "local" }); return; }
+      const status = (ue as { status?: number } | null)?.status;
+      const gone = !ue ? !u.user : status === 401 || status === 403 || status === 404 ||
+        /user.*(not found|does not exist)|session.*not found/i.test(ue.message);
+      if (gone) { await supabase.auth.signOut({ scope: "local" }); return; }
+      retrySoon(); // temporary problem: keep what is on screen and try again shortly
+      return;
     }
+    if (pe) { retrySoon(); return; } // network/server error: keep the current screen, retry shortly
     setMe(p);
     setIsAdmin(!!r?.some((x) => x.role === "admin"));
     setPending(!!q && !r?.length);
   }, [session?.user.id]);
 
   useEffect(() => {
+    retryRef.current = () => void loadMe();
     void loadMe();
   }, [loadMe]);
 
