@@ -76,7 +76,7 @@ export function Header({ title, subtitle }: { title: string; subtitle: string })
       </div>
       <div className="flex items-center gap-3">
         <LangSwitch />
-        <button onClick={() => supabase.auth.signOut()} className="text-sm text-muted-foreground">
+        <button onClick={() => supabase.auth.signOut({ scope: "local" })} className="text-sm text-muted-foreground">
           {t("signOut")}
         </button>
       </div>

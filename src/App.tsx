@@ -78,7 +78,7 @@ export function App() {
         <p className="text-muted-foreground">{t("waitingText")}</p>
         <div className="flex gap-2">
           <button onClick={() => void loadMe()} className="h-11 rounded-xl bg-primary px-5 font-semibold text-primary-foreground">{t("checkAgain")}</button>
-          <button onClick={() => supabase.auth.signOut()} className="h-11 rounded-xl border px-5 font-semibold">{t("signOut")}</button>
+          <button onClick={() => supabase.auth.signOut({ scope: "local" })} className="h-11 rounded-xl border px-5 font-semibold">{t("signOut")}</button>
         </div>
       </main>
     );
