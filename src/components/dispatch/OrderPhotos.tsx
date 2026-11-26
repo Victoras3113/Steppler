@@ -4,7 +4,8 @@ import { Camera, Download, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { t, useLang } from "@/lib/i18n";
 
-export const PHOTOS_REQUIRED = 3;
+export const PHOTOS_REQUIRED = 3; // minimum to finish an order
+export const PHOTOS_MAX = 10; // drivers may add extra photos up to this limit
 const BUCKET = "order-photos";
 
 type Photo = { path: string; url: string };
@@ -82,6 +83,8 @@ export function OrderPhotoCapture({ orderId, onCount }: { orderId: string; onCou
   };
 
   const missing = Math.max(0, PHOTOS_REQUIRED - photos.length);
+  // Empty slots up to the minimum, then one "add more" slot until the limit is reached.
+  const slots = missing > 0 ? missing : photos.length < PHOTOS_MAX ? 1 : 0;
   return (
     <div className="mt-3">
       <p className="text-sm font-semibold">{t("photosTitle")}</p>
@@ -95,11 +98,11 @@ export function OrderPhotoCapture({ orderId, onCount }: { orderId: string; onCou
             </button>
           </div>
         ))}
-        {Array.from({ length: missing }).map((_, i) => (
+        {Array.from({ length: slots }).map((_, i) => (
           <button key={i} type="button" disabled={busy} onClick={() => input.current?.click()}
             className="flex aspect-square flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-primary/40 text-xs font-semibold text-primary disabled:opacity-50">
             <Camera className="size-6" />
-            {busy && i === 0 ? t("uploading") : `${t("photo")} ${photos.length + i + 1}`}
+            {busy && i === 0 ? t("uploading") : missing > 0 ? `${t("photo")} ${photos.length + i + 1}` : t("addPhoto")}
           </button>
         ))}
       </div>
