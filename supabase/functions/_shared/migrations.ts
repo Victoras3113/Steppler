@@ -109,4 +109,18 @@ revoke all on public.signup_attempts from anon, authenticated;
 grant all on public.signup_attempts to service_role;
 `,
   },
+  {
+    name: "2026-11-26_translation_cache",
+    sql: `
+-- Translations of order texts, cached so each text is translated only once (used by the translate function only).
+create table if not exists public.translations (
+  key text primary key,          -- sha256 of "<lang>|<original text>"
+  text text not null,
+  created_at timestamptz not null default now()
+);
+alter table public.translations enable row level security;
+revoke all on public.translations from anon, authenticated;
+grant all on public.translations to service_role;
+`,
+  },
 ];
