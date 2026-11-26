@@ -1,0 +1,29 @@
+roles after signup|admin2@x.de||admin
+roles after signup|direct@x.de||driver
+roles after signup|hacker@drivers.seppeler.app||driver
+roles after signup|owner@x.de|admin|
+pending driver sees orders|0
+ERROR:  not a driver
+CONTEXT:  PL/pgSQL function accept_order(uuid) line 4 at RAISE
+own name update ok
+ERROR:  permission denied for table profiles
+owner sees requests|3
+owner approves admin2|t
+admin2 sees requests|driver,driver
+ERROR:  Only the main account can approve administrators
+CONTEXT:  PL/pgSQL function decide_admin_request(uuid,boolean) line 7 at RAISE
+admin2 approves hacker driver|t
+admin2 declines direct signup|t
+direct signup deleted|0
+driver sees orders|1
+driver accepts|t
+photo upload ok
+ERROR:  new row violates row-level security policy for table "objects"
+complete with 1 photo (should fail)|t
+photos stored|17
+ERROR:  permission denied for table orders
+ERROR:  permission denied for function has_role
+t
+ERROR:  new row violates row-level security policy for table "objects"
+ERROR:  new row violates row-level security policy for table "objects"
+photos on order B|10
