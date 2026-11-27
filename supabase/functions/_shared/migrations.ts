@@ -228,4 +228,29 @@ end $fn$;
 revoke execute on function public.enforce_break_rules() from public, anon, authenticated;
 `,
   },
+  {
+    name: "2026-11-27_two_breaks_per_day",
+    sql: `
+-- Breaks: allowed at any time during working hours 05:30-22:30 (German time), at most 2 per day per account
+-- (each forklift account is shared by two drivers: one break each). Max. 30 minutes each (see end_long_breaks).
+create or replace function public.enforce_break_rules()
+returns trigger language plpgsql security definer set search_path = public
+as $fn$
+declare
+  local_now timestamp := (now() at time zone 'Europe/Berlin');
+  day_start timestamp := date_trunc('day', (now() at time zone 'Europe/Berlin'));
+  used int;
+begin
+  if new.status is distinct from 'break' or old.status = 'break' then return new; end if;
+  if local_now < day_start + interval '5 hours 30 minutes' or local_now >= day_start + interval '22 hours 30 minutes' then
+    raise exception 'break_not_allowed_now';
+  end if;
+  select count(*) into used from public.status_events
+   where user_id = new.id and status = 'break' and started_at >= (day_start at time zone 'Europe/Berlin');
+  if used >= 2 then raise exception 'break_already_used'; end if;
+  return new;
+end $fn$;
+revoke execute on function public.enforce_break_rules() from public, anon, authenticated;
+`,
+  },
 ];
