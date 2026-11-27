@@ -194,4 +194,38 @@ create index if not exists status_events_unchecked on public.status_events (star
 alter table public.orders add column if not exists reminded_at timestamptz;
 `,
   },
+  {
+    name: "2026-11-27_shift_hours",
+    sql: `
+-- Work happens in two shifts (German time): early 05:30-14:00 and late 14:00-22:30.
+-- One break per shift: between 05:30 and 14:00, and between 14:30 and 22:30. No break during the 14:00-14:30
+-- handover or outside working hours. (Each forklift account is shared by an early and a late driver.)
+create or replace function public.enforce_break_rules()
+returns trigger language plpgsql security definer set search_path = public
+as $fn$
+declare
+  local_now timestamp := (now() at time zone 'Europe/Berlin');
+  day_start timestamp := date_trunc('day', (now() at time zone 'Europe/Berlin'));
+  w_start timestamptz;
+  w_end timestamptz;
+  used int;
+begin
+  if new.status is distinct from 'break' or old.status = 'break' then return new; end if;
+  if local_now >= day_start + interval '5 hours 30 minutes' and local_now < day_start + interval '14 hours' then
+    w_start := (day_start + interval '5 hours 30 minutes') at time zone 'Europe/Berlin';
+    w_end := (day_start + interval '14 hours') at time zone 'Europe/Berlin';
+  elsif local_now >= day_start + interval '14 hours 30 minutes' and local_now < day_start + interval '22 hours 30 minutes' then
+    w_start := (day_start + interval '14 hours 30 minutes') at time zone 'Europe/Berlin';
+    w_end := (day_start + interval '22 hours 30 minutes') at time zone 'Europe/Berlin';
+  else
+    raise exception 'break_not_allowed_now';
+  end if;
+  select count(*) into used from public.status_events
+   where user_id = new.id and status = 'break' and started_at >= w_start and started_at < w_end;
+  if used >= 1 then raise exception 'break_already_used'; end if;
+  return new;
+end $fn$;
+revoke execute on function public.enforce_break_rules() from public, anon, authenticated;
+`,
+  },
 ];

@@ -2,8 +2,9 @@
 //  1. Alerts all admins once per order left open 30+ minutes (each order is marked before sending, so it never alerts twice).
 //  2. Once a day (after 07:00 UTC) checks how much photo storage is used and alerts the main account when it is almost full.
 //  3. When a driver comes back from a break, alerts them about orders that arrived during the break and are still open.
-//  4. Every 10 minutes, reminds all available / processing drivers about each order that nobody has accepted yet.
-import { admin, adminIds, appSecret, json, pushTo } from "../_shared/util.ts";
+//  4. Every 10 minutes, reminds all available / processing drivers about each order that nobody has accepted yet
+//     (only during working hours 05:30-22:30 German time, when drivers are at work).
+import { admin, adminIds, appSecret, isWorkingHours, json, pushTo } from "../_shared/util.ts";
 
 const BUCKET = "order-photos";
 const STORAGE_LIMIT_MB = 1024; // Supabase free plan: 1 GB file storage
@@ -72,6 +73,7 @@ async function breakReturnAlerts() {
 }
 
 async function openOrderReminders() {
+  if (!isWorkingHours()) return;
   const nowIso = new Date().toISOString();
   const due = new Date(Date.now() - 9.5 * 60 * 1000).toISOString(); // ~10 min, with a little slack for the 1-minute schedule
   // Claim the orders that are due, so each reminder is sent only once even if two runs overlap.

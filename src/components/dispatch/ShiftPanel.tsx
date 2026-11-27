@@ -22,9 +22,17 @@ export function fmtDateTime(d: Date | number | string) {
   return new Date(d).toLocaleString(loc, { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" });
 }
 
-// Shift panel: live clock, time on duty today (resets at 00:00), time in the current status and today's time per status.
+// Shifts (German time). Each forklift account is shared by an early and a late driver.
+export const SHIFTS = [
+  { key: "early", label: "shiftEarly", start: 5 * 60 + 30, end: 14 * 60 },
+  { key: "late", label: "shiftLate", start: 14 * 60, end: 22 * 60 + 30 },
+] as const;
+const at = (day: Date, minutes: number) => { const d = new Date(day); d.setHours(0, minutes, 0, 0); return d.getTime(); };
+
 export const BREAK_MAX_MS = 30 * 60 * 1000;
 
+// Shift panel: live clock, time on duty in the current shift (starts again with each shift), time in the
+// current status, today's time per status, and a summary of both shifts of the day.
 export function ShiftPanel({ userId, status, onBreakOver }: { userId: string; status: DriverStatus; onBreakOver?: () => void }) {
   useLang();
   const now = useNow();
@@ -36,22 +44,34 @@ export function ShiftPanel({ userId, status, onBreakOver }: { userId: string; st
   }, [userId]);
   useEffect(() => { void load(); }, [load, status]);
 
-  // Everything counts from 00:00 today, so the clocks start again every night instead of running non-stop.
-  const midnight = new Date(now); midnight.setHours(0, 0, 0, 0);
-  const dayStart = midnight.getTime();
-  const cur = evs[0];
-  const curStart = Math.max(cur ? new Date(cur.started_at).getTime() : now, dayStart);
+  const today = new Date(now);
+  const nowMin = today.getHours() * 60 + today.getMinutes();
+  const shift = SHIFTS.find((sh) => nowMin >= sh.start && nowMin < sh.end) ?? null;
 
-  const totals: Record<DriverStatus, number> = { available: 0, busy: 0, break: 0, off: 0 };
-  let end = now;
-  for (const e of evs) {
-    const s = new Date(e.started_at).getTime();
-    const from = Math.max(s, dayStart);
-    if (end > from) totals[e.status] += end - from;
-    end = s;
-    if (s < dayStart) break;
-  }
-  const onDutyToday = statusOrder.reduce((a, st) => a + totals[st], 0);
+  // Time per status inside [from, to), counting only working statuses.
+  const totalsIn = (from: number, to: number) => {
+    const tot: Record<DriverStatus, number> = { available: 0, busy: 0, break: 0, off: 0 };
+    let end = Math.min(now, to);
+    for (const e of evs) {
+      const s = new Date(e.started_at).getTime();
+      const a = Math.max(s, from);
+      if (end > a) tot[e.status] += end - a;
+      end = Math.min(end, s);
+      if (s < from) break;
+    }
+    return tot;
+  };
+  const onDuty = (tot: Record<DriverStatus, number>) => statusOrder.reduce((a, st) => a + tot[st], 0);
+
+  const shiftFrom = shift ? at(today, shift.start) : at(today, 0);
+  const shiftTo = shift ? at(today, shift.end) : now;
+  const totals = shift ? totalsIn(shiftFrom, shiftTo) : totalsIn(at(today, SHIFTS[0].start), at(today, SHIFTS[1].end));
+  const onDutyNow = onDuty(totals);
+  const perShift = SHIFTS.map((sh) => onDuty(totalsIn(at(today, sh.start), at(today, sh.end))));
+  const sum = onDutyNow || 1;
+
+  const cur = evs[0];
+  const curStart = Math.max(cur ? new Date(cur.started_at).getTime() : now, shiftFrom);
 
   // Break countdown: a break lasts at most 30 minutes, then the driver is set back to "available".
   const breakStart = status === "break" && cur?.status === "break" ? new Date(cur.started_at).getTime() : null;
@@ -63,27 +83,28 @@ export function ShiftPanel({ userId, status, onBreakOver }: { userId: string; st
       onBreakOver();
     }
   }, [breakLeft, breakStart, onBreakOver]);
-  const sum = onDutyToday || 1;
 
   return (
     <section className="mb-4 rounded-3xl bg-card p-5">
       <p className="text-sm text-muted-foreground">{fmtDateTime(now)}</p>
+      <p className="mt-1 text-sm font-semibold">{shift ? t(shift.label) : t("offHours")}</p>
       <div className="mt-3 flex items-end justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{t("onDutyToday")}</p>
-          <p className={`font-display text-5xl font-bold tabular-nums ${statusMeta[status].text}`}>{dur(onDutyToday)}</p>
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{shift ? t("thisShift") : t("todayTotal")}</p>
+          <p className={`font-display text-5xl font-bold tabular-nums ${shift ? statusMeta[status].text : "text-muted-foreground"}`}>{dur(onDutyNow)}</p>
         </div>
-        <div className="text-right text-sm">
-          <p className="text-muted-foreground">{t("inStatus", { s: t(statusMeta[status].label) })}</p>
-          <p className={`font-semibold tabular-nums ${statusMeta[status].text}`}>{dur(now - curStart)}</p>
-        </div>
+        {shift && (
+          <div className="text-right text-sm">
+            <p className="text-muted-foreground">{t("inStatus", { s: t(statusMeta[status].label) })}</p>
+            <p className={`font-semibold tabular-nums ${statusMeta[status].text}`}>{dur(now - curStart)}</p>
+          </div>
+        )}
       </div>
       {breakLeft !== null && (
         <p className={`mt-3 rounded-xl bg-background px-3 py-2 text-sm font-semibold ${statusMeta.break.text}`}>
           {t("breakEndsIn")} <span className="tabular-nums">{dur(Math.max(0, breakLeft)).replace(/^0:/, "")}</span>
         </p>
       )}
-      <p className="mt-4 text-xs font-semibold uppercase tracking-widest text-muted-foreground">{t("today")}</p>
       <div className="mt-2 flex h-3 overflow-hidden rounded-full bg-secondary">
         {statusOrder.map((s) => <div key={s} className={statusMeta[s].dot} style={{ width: `${(totals[s] / sum) * 100}%` }} />)}
       </div>
@@ -95,6 +116,10 @@ export function ShiftPanel({ userId, status, onBreakOver }: { userId: string; st
           </li>
         ))}
       </ul>
+      <p className="mt-3 text-xs text-muted-foreground">
+        {t("today")}: {t("shiftEarlyShort")} <span className="font-semibold tabular-nums text-foreground">{dur(perShift[0]!)}</span>
+        {" · "}{t("shiftLateShort")} <span className="font-semibold tabular-nums text-foreground">{dur(perShift[1]!)}</span>
+      </p>
     </section>
   );
 }

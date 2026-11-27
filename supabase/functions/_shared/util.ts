@@ -90,3 +90,16 @@ export async function adminIds() {
 // Best-effort client IP (Supabase Edge sits behind a proxy).
 export const clientIp = (req: Request) =>
   (req.headers.get("cf-connecting-ip") ?? req.headers.get("x-forwarded-for")?.split(",")[0] ?? "unknown").trim();
+
+// Minutes since midnight in German time (the forklifts work in shifts 05:30-14:00 and 14:00-22:30).
+export function berlinMinutes(d = new Date()) {
+  const [h, m] = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Berlin", hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
+    .format(d).split(":").map(Number);
+  return h! * 60 + m!;
+}
+export const WORK_START_MIN = 5 * 60 + 30; // 05:30
+export const WORK_END_MIN = 22 * 60 + 30; // 22:30
+export const isWorkingHours = (d = new Date()) => {
+  const m = berlinMinutes(d);
+  return m >= WORK_START_MIN && m < WORK_END_MIN;
+};
