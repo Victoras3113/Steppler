@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Translated } from "./Translated";
 import { toast } from "sonner";
 import { BellRing } from "lucide-react";
@@ -28,6 +28,26 @@ export function DriverView({ me, onChange }: { me: Profile; onChange: () => void
     playRing();
     systemNotify("Neuer Auftrag – Hilfe benötigt!", o.details);
   });
+
+  // Back from a break: alert about orders that arrived during the break and are still waiting.
+  const prevStatus = useRef(me.status);
+  useEffect(() => {
+    const was = prevStatus.current;
+    prevStatus.current = me.status;
+    if (was !== "break" || me.status === "break") return;
+    void (async () => {
+      const { data: ev } = await supabase.from("status_events").select("started_at")
+        .eq("user_id", me.id).eq("status", "break").order("started_at", { ascending: false }).limit(1).maybeSingle();
+      if (!ev) return;
+      const { data: waiting } = await supabase.from("orders").select("*")
+        .eq("status", "open").gte("created_at", ev.started_at).order("created_at", { ascending: true });
+      if (!waiting?.length) return;
+      setIncoming(waiting[0] as Order);
+      playRing();
+      toast.warning(t("ordersDuringBreak", { n: waiting.length }), { duration: 15000 });
+      void reload();
+    })();
+  }, [me.status, me.id, reload]);
 
   const setStatus = async (status: DriverStatus) => {
     unlockAudio();

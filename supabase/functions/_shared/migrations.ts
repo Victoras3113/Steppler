@@ -179,4 +179,12 @@ begin
 end $do$;
 `,
   },
+  {
+    name: "2026-11-27_break_return_alerts",
+    sql: `
+-- Marks status changes that were already checked for "orders that arrived during the break" (see overdue-orders function).
+alter table public.status_events add column if not exists return_checked_at timestamptz;
+create index if not exists status_events_unchecked on public.status_events (started_at) where return_checked_at is null;
+`,
+  },
 ];

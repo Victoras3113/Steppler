@@ -1,6 +1,7 @@
 // Called every minute by pg_cron (see supabase/cron.sql). Protected by the cron_secret value in app_secrets.
 //  1. Alerts all admins once per order left open 30+ minutes (each order is marked before sending, so it never alerts twice).
 //  2. Once a day (after 07:00 UTC) checks how much photo storage is used and alerts the main account when it is almost full.
+//  3. When a driver comes back from a break, alerts them about orders that arrived during the break and are still open.
 import { admin, adminIds, appSecret, json, pushTo } from "../_shared/util.ts";
 
 const BUCKET = "order-photos";
@@ -44,11 +45,37 @@ async function dailyStorageCheck() {
   });
 }
 
+async function breakReturnAlerts() {
+  const nowIso = new Date().toISOString();
+  // Claim recent status changes once (so each return from a break is alerted only one time).
+  const { data: evs } = await admin.from("status_events")
+    .update({ return_checked_at: nowIso })
+    .in("status", ["available", "busy"]).is("return_checked_at", null)
+    .gt("started_at", new Date(Date.now() - 15 * 60 * 1000).toISOString())
+    .select("id, user_id, started_at");
+  for (const ev of evs ?? []) {
+    const { data: prev } = await admin.from("status_events").select("status, started_at")
+      .eq("user_id", ev.user_id).lt("started_at", ev.started_at)
+      .order("started_at", { ascending: false }).limit(1).maybeSingle();
+    if (prev?.status !== "break") continue;
+    const { data: waiting } = await admin.from("orders").select("id, details")
+      .eq("status", "open").gte("created_at", prev.started_at).lte("created_at", ev.started_at)
+      .order("created_at", { ascending: true });
+    if (!waiting?.length) continue;
+    await pushTo([ev.user_id as string], {
+      title: waiting.length === 1 ? "1 Auftrag wartet seit Ihrer Pause" : `${waiting.length} Aufträge warten seit Ihrer Pause`,
+      body: waiting.map((o) => `• ${o.details}`).join("\n"),
+      orderId: `break-return-${ev.id}`,
+    });
+  }
+}
+
 Deno.serve(async (req) => {
   const secret = await appSecret("cron_secret");
   if (!secret || req.headers.get("x-cron-secret") !== secret) return json({ error: "Unauthorized" }, 401);
 
   try { await dailyStorageCheck(); } catch (e) { console.error("storage check failed", e); }
+  try { await breakReturnAlerts(); } catch (e) { console.error("break return alerts failed", e); }
 
   const cutoff = new Date(Date.now() - 30 * 60 * 1000).toISOString();
   const { data: orders } = await admin
