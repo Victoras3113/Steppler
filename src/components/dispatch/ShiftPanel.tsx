@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { t, useLang, getLang } from "@/lib/i18n";
 import { statusMeta, statusOrder, type DriverStatus } from "./shared";
@@ -23,7 +23,9 @@ export function fmtDateTime(d: Date | number | string) {
 }
 
 // Shift panel: live clock, time on duty today (resets at 00:00), time in the current status and today's time per status.
-export function ShiftPanel({ userId, status }: { userId: string; status: DriverStatus }) {
+export const BREAK_MAX_MS = 30 * 60 * 1000;
+
+export function ShiftPanel({ userId, status, onBreakOver }: { userId: string; status: DriverStatus; onBreakOver?: () => void }) {
   useLang();
   const now = useNow();
   const [evs, setEvs] = useState<Ev[]>([]);
@@ -50,6 +52,17 @@ export function ShiftPanel({ userId, status }: { userId: string; status: DriverS
     if (s < dayStart) break;
   }
   const onDutyToday = statusOrder.reduce((a, st) => a + totals[st], 0);
+
+  // Break countdown: a break lasts at most 30 minutes, then the driver is set back to "available".
+  const breakStart = status === "break" && cur?.status === "break" ? new Date(cur.started_at).getTime() : null;
+  const breakLeft = breakStart !== null ? BREAK_MAX_MS - (now - breakStart) : null;
+  const ended = useRef<number | null>(null);
+  useEffect(() => {
+    if (breakLeft !== null && breakLeft <= 0 && onBreakOver && ended.current !== breakStart) {
+      ended.current = breakStart;
+      onBreakOver();
+    }
+  }, [breakLeft, breakStart, onBreakOver]);
   const sum = onDutyToday || 1;
 
   return (
@@ -65,6 +78,11 @@ export function ShiftPanel({ userId, status }: { userId: string; status: DriverS
           <p className={`font-semibold tabular-nums ${statusMeta[status].text}`}>{dur(now - curStart)}</p>
         </div>
       </div>
+      {breakLeft !== null && (
+        <p className={`mt-3 rounded-xl bg-background px-3 py-2 text-sm font-semibold ${statusMeta.break.text}`}>
+          {t("breakEndsIn")} <span className="tabular-nums">{dur(Math.max(0, breakLeft)).replace(/^0:/, "")}</span>
+        </p>
+      )}
       <p className="mt-4 text-xs font-semibold uppercase tracking-widest text-muted-foreground">{t("today")}</p>
       <div className="mt-2 flex h-3 overflow-hidden rounded-full bg-secondary">
         {statusOrder.map((s) => <div key={s} className={statusMeta[s].dot} style={{ width: `${(totals[s] / sum) * 100}%` }} />)}

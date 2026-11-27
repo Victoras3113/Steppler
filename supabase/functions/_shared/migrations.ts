@@ -123,4 +123,60 @@ revoke all on public.translations from anon, authenticated;
 grant all on public.translations to service_role;
 `,
   },
+  {
+    name: "2026-11-27_break_rules",
+    sql: `
+-- Breaks (German time): at most one break between 00:00 and 14:00 and one between 14:30 and 24:00;
+-- no break can be started between 14:00 and 14:30. A break ends automatically after 30 minutes.
+create or replace function public.enforce_break_rules()
+returns trigger language plpgsql security definer set search_path = public
+as $fn$
+declare
+  local_now timestamp := (now() at time zone 'Europe/Berlin');
+  day_start timestamp := date_trunc('day', (now() at time zone 'Europe/Berlin'));
+  w_start timestamptz;
+  w_end timestamptz;
+  used int;
+begin
+  if new.status is distinct from 'break' or old.status = 'break' then return new; end if;
+  if local_now < day_start + interval '14 hours' then
+    w_start := day_start at time zone 'Europe/Berlin';
+    w_end := (day_start + interval '14 hours') at time zone 'Europe/Berlin';
+  elsif local_now >= day_start + interval '14 hours 30 minutes' then
+    w_start := (day_start + interval '14 hours 30 minutes') at time zone 'Europe/Berlin';
+    w_end := (day_start + interval '1 day') at time zone 'Europe/Berlin';
+  else
+    raise exception 'break_not_allowed_now';
+  end if;
+  select count(*) into used from public.status_events
+   where user_id = new.id and status = 'break' and started_at >= w_start and started_at < w_end;
+  if used >= 1 then raise exception 'break_already_used'; end if;
+  return new;
+end $fn$;
+revoke execute on function public.enforce_break_rules() from public, anon, authenticated;
+drop trigger if exists profiles_break_rules on public.profiles;
+create trigger profiles_break_rules before update of status on public.profiles
+  for each row execute function public.enforce_break_rules();
+
+-- Ends breaks that have lasted 30 minutes (also when the driver's app is closed). Runs every minute.
+create or replace function public.end_long_breaks()
+returns integer language sql security definer set search_path = public
+as $fn$
+  with done as (
+    update public.profiles p set status = 'available', updated_at = now()
+     where p.status = 'break'
+       and coalesce((select max(e.started_at) from public.status_events e where e.user_id = p.id and e.status = 'break'), p.updated_at)
+           <= now() - interval '30 minutes'
+    returning 1)
+  select count(*)::int from done;
+$fn$;
+revoke execute on function public.end_long_breaks() from public, anon, authenticated;
+do $do$
+begin
+  if exists (select 1 from pg_namespace where nspname = 'cron') then
+    perform cron.schedule('end-long-breaks', '* * * * *', 'select public.end_long_breaks()');
+  end if;
+end $do$;
+`,
+  },
 ];

@@ -31,7 +31,18 @@ export function DriverView({ me, onChange }: { me: Profile; onChange: () => void
 
   const setStatus = async (status: DriverStatus) => {
     unlockAudio();
-    await supabase.from("profiles").update({ status, updated_at: new Date().toISOString() }).eq("id", me.id);
+    const { error } = await supabase.from("profiles").update({ status, updated_at: new Date().toISOString() }).eq("id", me.id);
+    if (error) {
+      // Break rules are enforced by the database (see migration 2026-11-27_break_rules).
+      if (/break_already_used/.test(error.message)) toast.error(t("breakUsed"));
+      else if (/break_not_allowed_now/.test(error.message)) toast.error(t("breakNotNow"));
+      else toast.error(error.message);
+    }
+    onChange();
+  };
+  const endBreak = async () => {
+    await supabase.from("profiles").update({ status: "available", updated_at: new Date().toISOString() }).eq("id", me.id);
+    toast.info(t("breakOver"));
     onChange();
   };
 
@@ -76,7 +87,7 @@ export function DriverView({ me, onChange }: { me: Profile; onChange: () => void
     <main className="mx-auto max-w-lg px-5 pb-16" onClick={unlockAudio}>
       <Header title={me.display_name || t("driver")} subtitle={t("staplaDriver")} />
 
-      <ShiftPanel userId={me.id} status={me.status} />
+      <ShiftPanel userId={me.id} status={me.status} onBreakOver={endBreak} />
 
       <section className="rounded-3xl bg-card p-2">
         <div className="grid grid-cols-3 gap-2">
