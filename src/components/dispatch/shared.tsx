@@ -34,17 +34,27 @@ export function useProfiles() {
   return profiles;
 }
 
-export function useOrders(onInsert?: (o: Order) => void) {
+export function useOrders(onInsert?: (o: Order) => void, onReminder?: (o: Order) => void) {
   const [orders, setOrders] = useState<Order[]>([]);
   const seen = useRef<Set<string> | null>(null);
+  const reminded = useRef<Map<string, string | null>>(new Map());
   const cb = useRef(onInsert);
   cb.current = onInsert;
+  const rcb = useRef(onReminder);
+  rcb.current = onReminder;
   const load = useCallback(async () => {
     const { data } = await supabase.from("orders").select("*").order("created_at", { ascending: false }).limit(50);
     const list = data ?? [];
     // Detect new orders by comparing against what we've already seen (works for any detail length).
     if (seen.current) {
       for (const o of list) if (!seen.current.has(o.id) && o.status === "open") cb.current?.(o);
+    }
+    // A new 10-minute reminder for an order nobody has accepted yet (set by the server).
+    for (const o of list) {
+      const r = (o as { reminded_at?: string | null }).reminded_at ?? null;
+      const before = reminded.current.get(o.id);
+      if (before !== undefined && r && r !== before && o.status === "open") rcb.current?.(o);
+      reminded.current.set(o.id, r);
     }
     seen.current = new Set(list.map((o) => o.id));
     setOrders(list);

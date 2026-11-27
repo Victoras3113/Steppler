@@ -187,4 +187,11 @@ alter table public.status_events add column if not exists return_checked_at time
 create index if not exists status_events_unchecked on public.status_events (started_at) where return_checked_at is null;
 `,
   },
+  {
+    name: "2026-11-27_open_order_reminders",
+    sql: `
+-- When drivers were last reminded about an order nobody has accepted yet (reminders every 10 minutes).
+alter table public.orders add column if not exists reminded_at timestamptz;
+`,
+  },
 ];

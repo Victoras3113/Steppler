@@ -27,6 +27,11 @@ export function DriverView({ me, onChange }: { me: Profile; onChange: () => void
     setIncoming(o);
     playRing();
     systemNotify("Neuer Auftrag – Hilfe benötigt!", o.details);
+  }, (o) => {
+    // 10-minute reminder for an order that is still waiting.
+    if (me.status !== "available" && me.status !== "busy") return;
+    setIncoming(o);
+    playRing();
   });
 
   // Back from a break: alert about orders that arrived during the break and are still waiting.

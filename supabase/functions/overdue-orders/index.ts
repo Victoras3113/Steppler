@@ -2,6 +2,7 @@
 //  1. Alerts all admins once per order left open 30+ minutes (each order is marked before sending, so it never alerts twice).
 //  2. Once a day (after 07:00 UTC) checks how much photo storage is used and alerts the main account when it is almost full.
 //  3. When a driver comes back from a break, alerts them about orders that arrived during the break and are still open.
+//  4. Every 10 minutes, reminds all available / processing drivers about each order that nobody has accepted yet.
 import { admin, adminIds, appSecret, json, pushTo } from "../_shared/util.ts";
 
 const BUCKET = "order-photos";
@@ -70,12 +71,38 @@ async function breakReturnAlerts() {
   }
 }
 
+async function openOrderReminders() {
+  const nowIso = new Date().toISOString();
+  const due = new Date(Date.now() - 9.5 * 60 * 1000).toISOString(); // ~10 min, with a little slack for the 1-minute schedule
+  // Claim the orders that are due, so each reminder is sent only once even if two runs overlap.
+  const { data: orders } = await admin.from("orders")
+    .update({ reminded_at: nowIso })
+    .eq("status", "open").lte("created_at", due)
+    .or(`reminded_at.is.null,reminded_at.lte.${due}`)
+    .select("id, details, created_at");
+  if (!orders?.length) return;
+  const { data: drivers } = await admin.from("user_roles").select("user_id").eq("role", "driver");
+  const ids = (drivers ?? []).map((d) => d.user_id as string);
+  if (!ids.length) return;
+  const { data: active } = await admin.from("profiles").select("id").in("status", ["available", "busy"]).in("id", ids);
+  const targets = (active ?? []).map((p) => p.id as string);
+  for (const o of orders) {
+    const mins = Math.round((Date.now() - new Date(o.created_at).getTime()) / 60000);
+    await pushTo(targets, {
+      title: `Erinnerung: Auftrag wartet seit ${mins} Min.`,
+      body: o.details,
+      orderId: `${o.id}-reminder`,
+    });
+  }
+}
+
 Deno.serve(async (req) => {
   const secret = await appSecret("cron_secret");
   if (!secret || req.headers.get("x-cron-secret") !== secret) return json({ error: "Unauthorized" }, 401);
 
   try { await dailyStorageCheck(); } catch (e) { console.error("storage check failed", e); }
   try { await breakReturnAlerts(); } catch (e) { console.error("break return alerts failed", e); }
+  try { await openOrderReminders(); } catch (e) { console.error("order reminders failed", e); }
 
   const cutoff = new Date(Date.now() - 30 * 60 * 1000).toISOString();
   const { data: orders } = await admin
