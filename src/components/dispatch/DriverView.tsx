@@ -79,7 +79,7 @@ export function DriverView({ me, onChange }: { me: Profile; onChange: () => void
       <ShiftPanel userId={me.id} status={me.status} />
 
       <section className="rounded-3xl bg-card p-2">
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-3 gap-2">
           {statusOrder.map((s) => {
             const active = me.status === s;
             return (

@@ -7,7 +7,8 @@ export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 export type Order = Database["public"]["Tables"]["orders"]["Row"];
 export type DriverStatus = Database["public"]["Enums"]["driver_status"];
 
-export const statusOrder: DriverStatus[] = ["available", "busy", "break", "off"];
+// Statuses a driver can choose (there is no "off duty" button any more; "off" only remains for old/new accounts).
+export const statusOrder: DriverStatus[] = ["available", "busy", "break"];
 
 export const statusMeta: Record<DriverStatus, { label: Key; dot: string; text: string }> = {
   available: { label: "st_available", dot: "bg-success", text: "text-success" },

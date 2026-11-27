@@ -22,7 +22,7 @@ export function fmtDateTime(d: Date | number | string) {
   return new Date(d).toLocaleString(loc, { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" });
 }
 
-// Gig-app style shift panel: live clock, time on duty / off duty, and today's time per status.
+// Shift panel: live clock, time on duty today (resets at 00:00), time in the current status and today's time per status.
 export function ShiftPanel({ userId, status }: { userId: string; status: DriverStatus }) {
   useLang();
   const now = useNow();
@@ -34,52 +34,37 @@ export function ShiftPanel({ userId, status }: { userId: string; status: DriverS
   }, [userId]);
   useEffect(() => { void load(); }, [load, status]);
 
-  const cur = evs[0];
-  const curStart = cur ? new Date(cur.started_at).getTime() : now;
-  // Find the start of the current online stretch (or offline stretch).
-  let streakStart = curStart;
-  let prevStretch: number | null = null;
-  const online = status !== "off";
-  for (let i = 0; i < evs.length; i++) {
-    const isOn = evs[i]!.status !== "off";
-    if (isOn !== online) {
-      const end = streakStart;
-      let j = i; let start = new Date(evs[i]!.started_at).getTime();
-      while (j + 1 < evs.length && (evs[j + 1]!.status !== "off") === isOn) { j++; start = new Date(evs[j]!.started_at).getTime(); }
-      prevStretch = end - start;
-      break;
-    }
-    streakStart = new Date(evs[i]!.started_at).getTime();
-  }
-
+  // Everything counts from 00:00 today, so the clocks start again every night instead of running non-stop.
   const midnight = new Date(now); midnight.setHours(0, 0, 0, 0);
+  const dayStart = midnight.getTime();
+  const cur = evs[0];
+  const curStart = Math.max(cur ? new Date(cur.started_at).getTime() : now, dayStart);
+
   const totals: Record<DriverStatus, number> = { available: 0, busy: 0, break: 0, off: 0 };
   let end = now;
   for (const e of evs) {
     const s = new Date(e.started_at).getTime();
-    const from = Math.max(s, midnight.getTime());
+    const from = Math.max(s, dayStart);
     if (end > from) totals[e.status] += end - from;
     end = s;
-    if (s < midnight.getTime()) break;
+    if (s < dayStart) break;
   }
-  const sum = Object.values(totals).reduce((a, b) => a + b, 0) || 1;
+  const onDutyToday = statusOrder.reduce((a, st) => a + totals[st], 0);
+  const sum = onDutyToday || 1;
 
   return (
     <section className="mb-4 rounded-3xl bg-card p-5">
       <p className="text-sm text-muted-foreground">{fmtDateTime(now)}</p>
       <div className="mt-3 flex items-end justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{online ? t("onDutyFor") : t("offDutyFor")}</p>
-          <p className={`font-display text-5xl font-bold tabular-nums ${statusMeta[status].text}`}>{dur(now - streakStart)}</p>
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{t("onDutyToday")}</p>
+          <p className={`font-display text-5xl font-bold tabular-nums ${statusMeta[status].text}`}>{dur(onDutyToday)}</p>
         </div>
         <div className="text-right text-sm">
           <p className="text-muted-foreground">{t("inStatus", { s: t(statusMeta[status].label) })}</p>
           <p className={`font-semibold tabular-nums ${statusMeta[status].text}`}>{dur(now - curStart)}</p>
         </div>
       </div>
-      {prevStretch !== null && (
-        <p className="mt-2 text-sm text-muted-foreground">{online ? t("wasOffFor") : t("wasOnFor")}: <span className="font-semibold tabular-nums text-foreground">{dur(prevStretch)}</span></p>
-      )}
       <p className="mt-4 text-xs font-semibold uppercase tracking-widest text-muted-foreground">{t("today")}</p>
       <div className="mt-2 flex h-3 overflow-hidden rounded-full bg-secondary">
         {statusOrder.map((s) => <div key={s} className={statusMeta[s].dot} style={{ width: `${(totals[s] / sum) * 100}%` }} />)}
